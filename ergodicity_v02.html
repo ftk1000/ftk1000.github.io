@@ -1,0 +1,218 @@
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coin Flip Simulation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        input {
+            width: 200px;
+        }
+        button {
+            margin-top: 10px;
+        }
+        #results {
+            border: 1px solid #ccc;
+            padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .process {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #eee;
+        }
+        .charts {
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+        }
+        canvas {
+            margin-top: 10px;
+        }
+        #barChart {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Coin Flip Simulation</h1>
+    <p>Simulate N processes, each flipping a coin T times with configurable probabilities for heads and tails.</p>
+    <form id="simulationForm">
+        <label>
+            Number of Processes (N):
+            <input type="number" id="N" value="5" min="1" required>
+        </label>
+        <label>
+            Number of Flips per Process (T):
+            <input type="number" id="T" value="100" min="1" required>
+        </label>
+        <label>
+            Probability of Heads (0 to 1):
+            <input type="number" id="pHead" value="0.5" min="0" max="1" step="0.01" required>
+        </label>
+        <label>
+            Probability of Tails (automatically 1 - pHead):
+            <input type="number" id="pTail" value="0.5" disabled>
+        </label>
+        <label>
+            Time Series Plot Width (pixels):
+            <input type="number" id="tsWidth" value="300" min="100" required>
+        </label>
+        <button type="button" onclick="runSimulation()">Run Simulation</button>
+    </form>
+    <div id="results"></div>
+
+    <script>
+        // Update pTail when pHead changes
+        document.getElementById('pHead').addEventListener('input', function() {
+            const pHead = parseFloat(this.value);
+            const pTail = 1 - pHead;
+            document.getElementById('pTail').value = pTail.toFixed(2);
+        });
+
+        function runSimulation() {
+            const N = parseInt(document.getElementById('N').value);
+            const T = parseInt(document.getElementById('T').value);
+            const pHead = parseFloat(document.getElementById('pHead').value);
+            const tsWidth = parseInt(document.getElementById('tsWidth').value);
+            const pTail = 1 - pHead;
+
+            if (isNaN(N) || isNaN(T) || isNaN(pHead) || isNaN(tsWidth) || N < 1 || T < 1 || pHead < 0 || pHead > 1 || tsWidth < 100) {
+                alert('Please enter valid values: N and T must be positive integers, pHead between 0 and 1, tsWidth at least 100.');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>Simulation Results</h2>';
+
+            for (let i = 0; i < N; i++) {
+                let cumHeads = [];
+                let currentHeads = 0;
+
+                for (let j = 0; j < T; j++) {
+                    const random = Math.random();
+                    if (random < pHead) {
+                        currentHeads++;
+                    }
+                    cumHeads.push(currentHeads / (j + 1));
+                }
+
+                const heads = currentHeads;
+                const tails = T - heads;
+
+                const processDiv = document.createElement('div');
+                processDiv.className = 'process';
+                processDiv.innerHTML = `
+                    <strong>Process ${i + 1}:</strong><br>
+                    Heads: ${heads} (${((heads / T) * 100).toFixed(2)}%)<br>
+                    Tails: ${tails} (${((tails / T) * 100).toFixed(2)}%)<br>
+                    <div class="charts">
+                        <canvas id="barChart${i}" width="200" height="150" style="margin-right: 10px;"></canvas>
+                        <canvas id="tsChart${i}" width="${tsWidth}" height="150"></canvas>
+                    </div>
+                `;
+                resultsDiv.appendChild(processDiv);
+
+                // Draw the bar chart
+                const barCanvas = document.getElementById(`barChart${i}`);
+                const barCtx = barCanvas.getContext('2d');
+
+                // Background
+                barCtx.fillStyle = '#f0f0f0';
+                barCtx.fillRect(0, 0, 200, 150);
+
+                // Bar dimensions
+                const barWidth = 50;
+                const maxBarHeight = 100;
+                const headsHeight = (heads / T) * maxBarHeight;
+                const tailsHeight = (tails / T) * maxBarHeight;
+
+                // Draw heads bar
+                barCtx.fillStyle = 'blue';
+                barCtx.fillRect(40, 120 - headsHeight, barWidth, headsHeight);
+
+                // Draw tails bar
+                barCtx.fillStyle = 'red';
+                barCtx.fillRect(110, 120 - tailsHeight, barWidth, tailsHeight);
+
+                // Labels
+                barCtx.fillStyle = 'black';
+                barCtx.font = '12px Arial';
+                barCtx.fillText('Heads', 40, 140);
+                barCtx.fillText('Tails', 110, 140);
+
+                // Percentage labels on bars
+                barCtx.fillText(`${((heads / T) * 100).toFixed(0)}%`, 40, 120 - headsHeight - 5);
+                barCtx.fillText(`${((tails / T) * 100).toFixed(0)}%`, 110, 120 - tailsHeight - 5);
+
+                // Draw the time series chart
+                const tsCanvas = document.getElementById(`tsChart${i}`);
+                const tsCtx = tsCanvas.getContext('2d');
+
+                const plotLeft = 20;
+                const plotRight = tsWidth - 20;
+                const plotTop = 10;
+                const plotBottom = 130;
+                const plotWidthSpan = plotRight - plotLeft;
+                const plotHeightSpan = plotBottom - plotTop;
+
+                // Background
+                tsCtx.fillStyle = '#f0f0f0';
+                tsCtx.fillRect(0, 0, tsWidth, 150);
+
+                // Axes
+                tsCtx.strokeStyle = 'black';
+                tsCtx.beginPath();
+                tsCtx.moveTo(plotLeft, plotTop);
+                tsCtx.lineTo(plotLeft, plotBottom);
+                tsCtx.lineTo(plotRight, plotBottom);
+                tsCtx.stroke();
+
+                // Y labels
+                tsCtx.fillStyle = 'black';
+                tsCtx.font = '10px Arial';
+                tsCtx.fillText('1.0', 2, 15);
+                tsCtx.fillText('0.5', 2, 70);
+                tsCtx.fillText('0.0', 2, 130);
+
+                // X labels
+                tsCtx.fillText('0', plotLeft, plotBottom + 15);
+                tsCtx.fillText(T, plotRight - 10, plotBottom + 15);
+
+                // Expected probability line
+                tsCtx.strokeStyle = 'green';
+                tsCtx.beginPath();
+                tsCtx.moveTo(plotLeft, plotBottom - (pHead * plotHeightSpan));
+                tsCtx.lineTo(plotRight, plotBottom - (pHead * plotHeightSpan));
+                tsCtx.stroke();
+
+                // Cumulative proportion line
+                tsCtx.strokeStyle = 'blue';
+                tsCtx.beginPath();
+                if (T > 0) {
+                    tsCtx.moveTo(plotLeft, plotBottom - (cumHeads[0] * plotHeightSpan));
+                    for (let k = 1; k < T; k++) {
+                        const x = plotLeft + (k / (T - 1)) * plotWidthSpan;
+                        const y = plotBottom - (cumHeads[k] * plotHeightSpan);
+                        tsCtx.lineTo(x, y);
+                    }
+                }
+                tsCtx.stroke();
+            }
+        }
+    </script>
+</body>
+</html>

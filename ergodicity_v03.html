@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Coin Flip Simulation</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Coin Flip Simulation</h1>
+    <p>Simulate N processes, each flipping a coin T times with configurable probabilities for heads and tails.</p>
+    <form id="simulationForm">
+        <label for="N">Number of Processes (N):</label>
+        <input type="number" id="N" value="5" min="1"><br><br>
+        <label for="T">Number of Flips per Process (T):</label>
+        <input type="number" id="T" value="100" min="1"><br><br>
+        <label for="pHead">Probability of Heads (0 to 1):</label>
+        <input type="number" id="pHead" value="0.5" min="0" max="1" step="0.01"><br><br>
+        <label for="pTail">Probability of Tails (automatically 1 - pHead):</label>
+        <input type="text" id="pTail" readonly><br><br>
+        <label for="plotWidth">Time Series Plot Width (pixels):</label>
+        <input type="number" id="plotWidth" value="800" min="100"><br><br>
+        <button type="button" onclick="runSimulation()">Run Simulation</button>
+    </form>
+    <div id="results"></div>
+    <script>
+        // Update pTail on pHead change
+        document.getElementById('pHead').addEventListener('input', () => {
+            let pHead = parseFloat(document.getElementById('pHead').value);
+            document.getElementById('pTail').value = (1 - pHead).toFixed(2);
+        });
+        // Initial update
+        document.getElementById('pTail').value = (1 - parseFloat(document.getElementById('pHead').value)).toFixed(2);
+
+        function runSimulation() {
+            let N = parseInt(document.getElementById('N').value);
+            let T = parseInt(document.getElementById('T').value);
+            let pHead = parseFloat(document.getElementById('pHead').value);
+            let plotWidth = parseInt(document.getElementById('plotWidth').value);
+            let results = document.getElementById('results');
+            results.innerHTML = '';
+
+            // Define multipliers for ergodicity demo
+            const headMult = 1.5;
+            const tailMult = 0.6;
+
+            // Generate data
+            let processes = [];
+            let averages = new Array(T + 1).fill(0);
+            let initialWealth = 1.0;
+
+            for (let n = 0; n < N; n++) {
+                let wealth = [initialWealth];
+                for (let t = 0; t < T; t++) {
+                    let flip = Math.random() < pHead ? headMult : tailMult;
+                    let newWealth = wealth[wealth.length - 1] * flip;
+                    wealth.push(newWealth);
+                }
+                processes.push(wealth);
+
+                // Add to averages
+                for (let t = 0; t <= T; t++) {
+                    averages[t] += wealth[t] / N;
+                }
+            }
+
+            // Ensemble average time series (line chart)
+            let avgLineDiv = document.createElement('div');
+            avgLineDiv.style.width = plotWidth + 'px';
+            let avgLineCanvas = document.createElement('canvas');
+            avgLineDiv.appendChild(avgLineCanvas);
+            results.appendChild(avgLineDiv);
+            let avgLineCtx = avgLineCanvas.getContext('2d');
+            new Chart(avgLineCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: T + 1}, (_, i) => i),
+                    datasets: [{
+                        label: 'Ensemble Average',
+                        data: averages,
+                        borderColor: 'red',
+                        fill: false
+                    }]
+                },
+                options: {
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Ensemble Average Time Series'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'logarithmic'
+                        }
+                    }
+                }
+            });
+
+            // Ensemble average bar chart
+            let avgBarDiv = document.createElement('div');
+            avgBarDiv.style.width = plotWidth + 'px';
+            let avgBarCanvas = document.createElement('canvas');
+            avgBarDiv.appendChild(avgBarCanvas);
+            results.appendChild(avgBarDiv);
+            let avgBarCtx = avgBarCanvas.getContext('2d');
+            new Chart(avgBarCtx, {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length: T + 1}, (_, i) => i),
+                    datasets: [{
+                        label: 'Ensemble Average',
+                        data: averages,
+                        backgroundColor: 'blue'
+                    }]
+                },
+                options: {
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Ensemble Average Bar Chart'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'logarithmic'
+                        }
+                    }
+                }
+            });
+
+            // Individual processes time series
+            for (let n = 0; n < N; n++) {
+                let procDiv = document.createElement('div');
+                procDiv.style.width = plotWidth + 'px';
+                let procCanvas = document.createElement('canvas');
+                procDiv.appendChild(procCanvas);
+                results.appendChild(procDiv);
+                let procCtx = procCanvas.getContext('2d');
+                new Chart(procCtx, {
+                    type: 'line',
+                    data: {
+                        labels: Array.from({length: T + 1}, (_, i) => i),
+                        datasets: [{
+                            label: `Process ${n + 1}`,
+                            data: processes[n],
+                            borderColor: 'black',
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `Process ${n + 1} Time Series`
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'logarithmic'
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
